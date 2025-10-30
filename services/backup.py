@@ -3,7 +3,7 @@ from datetime import datetime
 
 def backup_to_csv(data):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    with open("backup.csv", "a", encoding="utf-8", newline="") as f:
+    with open(f"backup_{timestamp}.csv", "w", encoding="utf-8", newline="") as f:
         writer = csv.writer(f)
         writer.writerow([
             data.get("name", ""),
