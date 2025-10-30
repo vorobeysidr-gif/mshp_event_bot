@@ -1,7 +1,16 @@
-credentials.json
-config.py
-.env
+# Python
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+
+# Credentials and configs
+.env
+credentials.json
+backup.csv
+
+# IDE stuff
 .vscode/
-/.platformio/
+.idea/
