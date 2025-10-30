@@ -1,0 +1,7 @@
+credentials.json
+config.py
+.env
+__pycache__/
+*.pyc
+.vscode/
+/.platformio/
