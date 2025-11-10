@@ -1,5 +1,5 @@
-from aiogram import Router, types
-from aiogram.fsm.context import FSMContext
+from aiogram import Router, types # type: ignore
+from aiogram.fsm.context import FSMContext # pyright: ignore[reportMissingImports]
 from services.sheets import append_lead_row
 from services.backup import backup_to_csv
 import logging

@@ -56,27 +56,34 @@ async def handle_name(message: types.Message, state: FSMContext):
 
 
 @router.message(LeadForm.contact, F.contact)
-async def handle_contact(message: types.Message, state: FSMContext):
-    await state.update_data(phone=message.contact.phone_number)
-    await message.answer(
-        "Отлично! Сколько учащемуся лет?", 
-        reply_markup=types.ReplyKeyboardRemove()
-    )
-    await state.set_state(LeadForm.age)
+async def handle_contact_any(message: types.Message, state: FSMContext):
+    """
+    Универсальный обработчик контакта — поддерживает и кнопку, и ручной ввод.
+    Не падает, если пользователь прислал контакт не тем способом.
+    """
+    contact = getattr(message, "contact", None)
+    raw_text = (message.text or "").strip() if message.text else ""
 
-
-@router.message(LeadForm.contact, F.text)
-async def handle_phone_text(message: types.Message, state: FSMContext):
-    import re
-
-    raw = (message.text or "").strip()
-    if not raw or raw.lower() == "ввести номер вручную":
+    # 1️⃣ Если пользователь нажал кнопку "Поделиться контактом"
+    if contact and contact.phone_number:
+        await state.update_data(phone=contact.phone_number)
         await message.answer(
-            "Пожалуйста, пришлите номер в формате +7XXXXXXXXXX или 8XXXXXXXXXX. Примеры: +79991234567 или 89161234567"
+            "✅ Спасибо! Сколько учащемуся лет?",
+            reply_markup=types.ReplyKeyboardRemove()
+        )
+        await state.set_state(LeadForm.age)
+        return
+
+    # 2️⃣ Если он нажал "Ввести номер вручную"
+    if raw_text.lower() == "ввести номер вручную":
+        await message.answer(
+            "Пожалуйста, пришлите номер в формате +7XXXXXXXXXX или 8XXXXXXXXXX.\n"
+            "Примеры: +79991234567 или 89161234567"
         )
         return
 
-    digits = re.sub(r"\D", "", raw)
+    # 3️⃣ Если он написал номер вручную
+    digits = re.sub(r"\D", "", raw_text)
     fixed = None
     if len(digits) == 11 and digits.startswith("8"):
         fixed = "+7" + digits[1:]
@@ -84,22 +91,22 @@ async def handle_phone_text(message: types.Message, state: FSMContext):
         fixed = "+" + digits
     elif len(digits) == 10 and digits.startswith("9"):
         fixed = "+7" + digits
-    elif raw.startswith("+7") and re.fullmatch(r"\+7\d{10}", raw.replace(" ", "")):
-        fixed = raw.replace(" ", "")
+    elif raw_text.startswith("+7") and re.fullmatch(r"\+7\d{10}", raw_text.replace(" ", "")):
+        fixed = raw_text.replace(" ", "")
 
     if not fixed:
         await message.answer(
-            "⚠️ Пожалуйста, введите корректный номер телефона:" \
-            "\n" \
-            "• В формате +7XXXXXXXXXX. Пример: +79991234567 \n"
-            "или \n"
+            "⚠️ Пожалуйста, введите корректный номер телефона:\n"
+            "• В формате +7XXXXXXXXXX (пример: +79991234567)\n"
+            "или\n"
             "• в формате 8XXXXXXXXXX"
         )
         return
 
     await state.update_data(phone=fixed)
     await message.answer(
-        "Принято! Сколько лет учащемуся?", reply_markup=types.ReplyKeyboardRemove()
+        "✅ Спасибо! Сколько учащемуся лет?",
+        reply_markup=types.ReplyKeyboardRemove()
     )
     await state.set_state(LeadForm.age)
 
