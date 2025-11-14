@@ -1,5 +1,5 @@
-aiogram==3.10.0
-google-auth==2.23.0
-gspread==5.11.3
-python-dotenv==1.0.0
-uvicorn==0.33.0
+aiogram==3.22.0
+google-auth==2.41.1
+gspread==6.2.1
+python-dotenv==1.2.1
+uvicorn==0.38.0
