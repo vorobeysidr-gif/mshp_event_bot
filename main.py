@@ -3,16 +3,11 @@ import asyncio
 from aiohttp import web
 from aiogram import Bot, Dispatcher
 from aiogram.types.bot_command import BotCommand
-from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
 from config import BOT_TOKEN, HOST
 from handlers import agreement, registration
-import uvicorn
-
 
 WEBHOOK_PATH = "/webhook"
 WEBHOOK_URL = f"https://{HOST}{WEBHOOK_PATH}"
-WEBAPP_HOST = "0.0.0.0"
-WEBAPP_PORT = 8080
 
 
 logging.basicConfig(level=logging.INFO)
@@ -31,24 +26,6 @@ async def on_shutdown(bot: Bot):
     logger.info("Webhook удалён")
 
 
-bot = Bot(token=BOT_TOKEN)
-dp = Dispatcher()
-
-# Роутеры (handlers)
-dp.include_router(agreement.router)
-dp.include_router(registration.router)
-
-# Приложение aiohttp
-app = web.Application()
-SimpleRequestHandler(dispatcher=dp, bot=bot).register(app, path=WEBHOOK_PATH)
-setup_application(app, dp, bot=bot)
-
-dp.startup.register(on_startup)
-dp.shutdown.register(on_shutdown)
-
-logging.info("Бот запущен в режиме webhook через Uvicorn")
-
-
 async def set_commands(bot: Bot) -> None:
     commands = [
         BotCommand(command="start", description="Начать запись на мастер-класс")
@@ -56,13 +33,28 @@ async def set_commands(bot: Bot) -> None:
     await bot.set_my_commands(commands)
 
 
+async def create_app():
+    bot = Bot(token=BOT_TOKEN)
+    dp = Dispatcher()
 
-if __name__ == "__main__":
-    uvicorn.run(
-        "main:main",
-        factory=True,
-        host=WEBAPP_HOST,
-        port=WEBAPP_PORT,
-        log_level="info",
-        reload=True 
-    )
+    dp.include_router(agreement.router)
+    dp.include_router(registration.router)
+
+    dp.startup.register(on_startup)
+    dp.shutdown.register(on_shutdown)
+
+    app = web.Application()
+    app["bot"] = bot
+    dp.workflow_data.update(app=app)
+
+    async def on_start(_):
+        asyncio.create_task(dp.start_polling(bot))
+
+    app.on_startup.append(on_start)
+    app.on_cleanup.append(lambda _: asyncio.create_task(on_shutdown(bot)))
+
+    return app
+
+
+def app():
+    return create_app()
