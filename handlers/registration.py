@@ -24,12 +24,12 @@ class LeadForm(StatesGroup):
 
 @router.message(LeadForm.name)
 async def handle_name(message: types.Message, state: FSMContext):
-    
+
     name = (message.text or "").strip()
     # Разрешаем буквы (RU/EN), пробелы и дефисы; длина 2..50
     if not name or not re.fullmatch(r"[A-Za-zА-Яа-яЁё\-\s]{2,50}", name):
         await message.answer(
-            "Пожалуйста, укажите имя буквами (2–50 символов). Допустимы русские/английские символы, пробелы и дефис."
+            "Пожалуйста, укажите имя буквами (2-50 символов). Допустимы русские/английские символы, пробелы и дефис."
         )
         return
     await state.update_data(name=name)
@@ -133,7 +133,7 @@ async def ask_is_student(message: types.Message, state: FSMContext):
     await state.set_state(LeadForm.is_student)
 
 times = [
-    "13:00 - 14:00", 
+    "13:00 - 14:00",
     "14:30 - 15:30",
     "16:00 - 17:00"
 ]

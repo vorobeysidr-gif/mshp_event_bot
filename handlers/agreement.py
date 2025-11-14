@@ -79,7 +79,7 @@ async def open_consent(cb: types.CallbackQuery):
         doc = FSInputFile("согласие_на_обработку_Москва_на_сайт_для_маркетинга.pdf")
         await cb.message.answer_document(doc, caption="Согласие на обработку персональных данных")
     except Exception:
-        await cb.message.answer("Файл согласия не найден в папке проекта. Обратитесь к администратору.")
+        await cb.message.answer("Файл согласия не найден. Обратитесь к администратору.")
     await cb.answer()
 
 
