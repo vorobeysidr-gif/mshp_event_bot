@@ -1,17 +1,23 @@
 import logging
+import asyncio
 from aiohttp import web
 from aiogram import Bot, Dispatcher
+from aiogram.types.bot_command import BotCommand
 from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
-from config import BOT_TOKEN
+from config import BOT_TOKEN, HOST
 from handlers import agreement, registration
+import uvicorn
+
 
 WEBHOOK_PATH = "/webhook"
-WEBHOOK_URL = f"https://event.informatics.ru{WEBHOOK_PATH}"
+WEBHOOK_URL = f"https://{HOST}{WEBHOOK_PATH}"
 WEBAPP_HOST = "0.0.0.0"
 WEBAPP_PORT = 8080
 
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
 
 async def on_startup(bot: Bot):
     logger.info("Настройка webhook...")
@@ -25,52 +31,33 @@ async def on_shutdown(bot: Bot):
     logger.info("Webhook удалён")
 
 
-async def main() -> web.Application:
-    bot = Bot(token=BOT_TOKEN)
-    dp = Dispatcher()
+bot = Bot(token=BOT_TOKEN)
+dp = Dispatcher()
 
-    # Роутеры (handlers)
-    dp.include_router(agreement.router)
-    dp.include_router(registration.router)
+# Роутеры (handlers)
+dp.include_router(agreement.router)
+dp.include_router(registration.router)
 
-    # Приложение aiohttp
-    app = web.Application()
-    SimpleRequestHandler(dispatcher=dp, bot=bot).register(app, path=WEBHOOK_PATH)
-    setup_application(app, dp, bot=bot)
+# Приложение aiohttp
+app = web.Application()
+SimpleRequestHandler(dispatcher=dp, bot=bot).register(app, path=WEBHOOK_PATH)
+setup_application(app, dp, bot=bot)
 
-    dp.startup.register(on_startup)
-    dp.shutdown.register(on_shutdown)
+dp.startup.register(on_startup)
+dp.shutdown.register(on_shutdown)
 
-    logging.info("Бот запущен в режиме webhook через Uvicorn")
-    return app
+logging.info("Бот запущен в режиме webhook через Uvicorn")
+
 
 async def set_commands(bot: Bot) -> None:
     commands = [
         BotCommand(command="start", description="Начать запись на мастер-класс")
     ]
     await bot.set_my_commands(commands)
-async def main() -> None:
-    logging.basicConfig(level=logging.INFO)
-    if not BOT_TOKEN:
-        raise RuntimeError("BOT_TOKEN is not set in environment")
-    bot = Bot(token=BOT_TOKEN)
-    dp = Dispatcher()
-    # Подключаем роутеры: сначала согласие, затем регистрация
-    dp.include_router(agreement.router)
-    dp.include_router(registration.router)
-    await set_commands(bot)
-    logging.info("Bot started successfully")
-    try:
-        await dp.start_polling(bot)
-    except (KeyboardInterrupt, asyncio.CancelledError):
-        logging.info("Bot stopped by user (graceful shutdown)")
-    finally:
-        await bot.session.close()
 
-app = asyncio.run(main())
+
 
 if __name__ == "__main__":
-    import uvicorn
     uvicorn.run(
         "main:main",
         factory=True,
