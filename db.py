@@ -8,10 +8,12 @@ from sqlalchemy import Table
 from sqlalchemy.ext.asyncio import create_async_engine
 from datetime import datetime
 
+from enum import Enum
+
 meta = MetaData()
 
 
-table = Table(
+user_table = Table(
     "userdata",
     meta,
     Column("id", Integer, primary_key=True, autoincrement=True),
@@ -27,19 +29,28 @@ table = Table(
     Column("registration_state", Integer, default=0),
 )
 
-"""
-registration_state
-0 - start bot, wait for agreements
-10 - confidence accepted
-01 - confidence rejected and agreement accepted
-11 - agreement accepted
-2 - user_name got
-3 - user_contact got
-4 - user_age got
-5 - is_our_student got
-6 - event_timeslot got, pending for writing data to spreadsheets
-7 - data written to spreadsheets, registration complete
-"""
+timeslot_table = Table(
+    "timeslotdata",
+    meta,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("description", String(255), default=""),
+    Column("timestamp", DateTime),
+    Column("is_active", Boolean, default=True),
+)
+
+class RegistrationState(Enum):
+    START_BOT = 0
+    WAIT_FOR_CONFIDENCE_AND_AGREEMENT = 100
+    CONFIDENCE_ACCEPTED = 110
+    CONFIDENCE_REJECTED_AND_AGREEMENT_ACCEPTED = 101
+    BOTH_CONFIDENCE_AND_AGREEMENT_ACCEPTED = 111
+    WAIT_FOR_USER_NAME = 2
+    WAIT_FOR_USER_CONTACT = 3
+    WAIT_FOR_USER_AGE = 4
+    WAIT_FOR_IS_OUR_STUDENT = 5
+    WAIT_FOR_EVENT_TIMESLOT = 6
+    WAIT_FOR_DATA_WRITTEN_TO_SPREADSHEETS = 7
+    DATA_WRITTEN_TO_SPREADSHEETS = 8
 
 
 async def async_main() -> None:
@@ -48,12 +59,12 @@ async def async_main() -> None:
         await conn.run_sync(meta.drop_all)
         await conn.run_sync(meta.create_all)
         await conn.execute(
-            table.insert(), [{"telegram_id": "some_name_1"}, {"telegram_id": "some_name_2"}]
+            user_table.insert(), [{"telegram_id": "some_name_1"}, {"telegram_id": "some_name_2"}]
         )
     async with engine.connect() as conn:
         # select a Result, which will be delivered with buffered
         # results
-        result = await conn.execute(select(table).where(table.c.telegram_id == "some_name_1"))
+        result = await conn.execute(select(user_table).where(user_table.c.telegram_id == "some_name_1"))
         print(result.fetchall())
     # for AsyncEngine created in function scope, close and
     # clean-up pooled connections
