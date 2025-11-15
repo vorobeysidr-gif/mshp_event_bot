@@ -5,6 +5,7 @@ from aiogram.types import BotCommand
 from config import BOT_TOKEN
 from handlers import registration
 from handlers import agreement
+from handlers import quest
 async def set_commands(bot: Bot) -> None:
     commands = [
         BotCommand(command="start", description="Начать запись на мастер-класс"),
@@ -20,6 +21,7 @@ async def main() -> None:
     # Подключаем роутеры: сначала согласие, затем регистрация
     dp.include_router(agreement.router)
     dp.include_router(registration.router)
+    dp.include_router(quest.router)
     await set_commands(bot)
     logging.info("Bot started successfully")
     try:

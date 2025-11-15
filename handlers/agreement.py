@@ -28,27 +28,28 @@ def build_agreement_kb(policy_ok: bool, consent_ok: bool) -> InlineKeyboardMarku
 
 	buttons.append([InlineKeyboardButton(text="Открыть согласие", callback_data="open:consent")])
 
-	# Кнопку «Продолжить» показываем только когда оба чекбокса отмечены
-	if policy_ok and consent_ok:
-		buttons.append([InlineKeyboardButton(text="✅ Продолжить", callback_data="continue")])
-
 	return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
 @router.message(CommandStart())
 async def start(message: types.Message, state: FSMContext):
+	import logging
+	logging.info(f"Start command received from user {message.from_user.id}")
+	
 	await state.clear()
 	await state.set_state(LeadForm.agreement)
 	await state.update_data(agree_policy=False, agree_consent=False)
 
 	text = (
 		"Добрый день! 😊\n\n"
-		"Для записи на мастер-класс необходимо ваше согласие с документами ниже.\n"
-		"Пожалуйста, ознакомьтесь и отметьте оба пункта:"
+		"Для участия в квесте необходимо ваше согласие с документами ниже, а также\n"
+		"информация о ваших контактных данных.\n"
+		"Пожалуйста, ознакомьтесь и отметьте оба пункта, чтобы продолжить:"
 	)
 
 	kb = build_agreement_kb(False, False)
 	await message.answer(text, reply_markup=kb)
+	logging.info(f"Start message sent to user {message.from_user.id}")
 
 
 @router.callback_query(LeadForm.agreement, F.data.startswith("toggle:"))
@@ -65,8 +66,15 @@ async def toggle_agreement(cb: types.CallbackQuery, state: FSMContext):
 		consent_ok = not consent_ok
 		await state.update_data(agree_consent=consent_ok)
 
-	await cb.message.edit_reply_markup(reply_markup=build_agreement_kb(policy_ok, consent_ok))
-	await cb.answer()
+	# Если оба согласия отмечены, сразу переходим к следующему шагу
+	if policy_ok and consent_ok:
+		await state.set_state(LeadForm.name)
+		await cb.message.edit_text("✅ Спасибо за согласие!")
+		await cb.message.answer("Как Вас зовут?")
+		await cb.answer()
+	else:
+		await cb.message.edit_reply_markup(reply_markup=build_agreement_kb(policy_ok, consent_ok))
+		await cb.answer()
 
 
 @router.callback_query(LeadForm.agreement, F.data == "open:consent")
@@ -84,18 +92,6 @@ async def open_consent(cb: types.CallbackQuery):
 async def open_policy(cb: types.CallbackQuery):
 	# Запасной сценарий, если POLICY_URL не задана
 	await cb.message.answer("Ссылка на политику конфиденциальности временно недоступна. Обратитесь к администратору.")
-	await cb.answer()
-
-
-@router.callback_query(LeadForm.agreement, F.data == "continue")
-async def proceed(cb: types.CallbackQuery, state: FSMContext):
-	data = await state.get_data()
-	if not (data.get("agree_policy") and data.get("agree_consent")):
-		await cb.answer("Отметьте оба пункта, чтобы продолжить", show_alert=True)
-		return
-
-	await state.set_state(LeadForm.name)
-	await cb.message.answer("Спасибо! Как Вас зовут?")
 	await cb.answer()
 
 

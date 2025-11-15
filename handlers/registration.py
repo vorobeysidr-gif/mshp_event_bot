@@ -5,6 +5,7 @@ from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 
 from services.sheets import append_lead_row
 from services.backup import backup_to_csv
+from .quest import start_quest
 import re
 
 router = Router()
@@ -16,7 +17,7 @@ class LeadForm(StatesGroup):
     contact = State()
     age = State()
     is_student = State()
-    time = State()
+        # time = State()  # Закомментировано: может понадобиться в будущем
 
 
 # Старт перенесён в handlers/agreement.py, чтобы сначала получить согласия.
@@ -125,58 +126,56 @@ async def ask_is_student(message: types.Message, state: FSMContext):
     await message.answer("Ребенок учится у нас?", reply_markup=kb)
     await state.set_state(LeadForm.is_student)
 
-times = [
-    "13:00 - 14:00", 
-    "14:30 - 15:30",
-    "16:00 - 17:00"
-]
+    # Закомментировано: выбор времени может понадобиться в будущем
+    # times = [
+    #     "13:00 - 14:00", 
+    #     "14:30 - 15:30",
+    #     "16:00 - 17:00"
+    # ]
 
 @router.message(LeadForm.is_student, F.text.in_({"Да", "Еще нет"}))
-async def ask_time(message: types.Message, state: FSMContext):
+async def finish_registration(message: types.Message, state: FSMContext):
     await state.update_data(is_mshp_student=message.text)
-    # Переходим к выбору времени мастер-класса
-    kb = ReplyKeyboardMarkup(
-        keyboard=[
-            [KeyboardButton(text=time)] for time in times
-        ],
-        resize_keyboard=True,
-        one_time_keyboard=True,
-    )
-    await message.answer("Выберите удобное время мастер-класса:", reply_markup=kb)
-    await state.set_state(LeadForm.time)
+    
+    # Убираем клавиатуру
+    await message.answer("Отлично! Спасибо за информацию! 😊", reply_markup=types.ReplyKeyboardRemove())
+    
+    # Запускаем квест
+    await start_quest(message, state)
 
 @router.message(LeadForm.is_student)
 async def is_student_invalid(message: types.Message, state: FSMContext):
     await message.answer("Пожалуйста, выберите вариант кнопкой: Да или Еще нет.")
 
 
-@router.message(LeadForm.time, F.text.in_({
-    time for time in times
-}))
-
-async def finish_with_time(message: types.Message, state: FSMContext):
-    await state.update_data(time=message.text)
-
-    data = await state.get_data()
-    try:
-        append_lead_row(data)
-    except Exception:
-        backup_to_csv(data)
-
-    name = data.get("name", "")
-    time_slot = data.get("time", "")
-    final_text = (
-        f"Спасибо за регистрацию, {name}!\n\n"
-        f"🕒 Время: {time_slot}\n\n"
-        f"Ждём вас на мастер-классе!"
-    )
-    await message.answer(final_text, reply_markup=types.ReplyKeyboardRemove())
-    await state.clear()
-
-
-@router.message(LeadForm.time)
-async def time_invalid(message: types.Message, state: FSMContext):
-    await message.answer(
-        "Пожалуйста, выберите один из предложенных вариантов времени кнопкой ниже."
-    )
+    # Закомментировано: выбор времени мастер-класса (может понадобиться в будущем)
+    # @router.message(LeadForm.time, F.text.in_({
+    #     time for time in times
+    # }))
+    # 
+    # async def finish_with_time(message: types.Message, state: FSMContext):
+    #     await state.update_data(time=message.text)
+    # 
+    #     data = await state.get_data()
+    #     try:
+    #         append_lead_row(data)
+    #     except Exception:
+    #         backup_to_csv(data)
+    # 
+    #     name = data.get("name", "")
+    #     time_slot = data.get("time", "")
+    #     final_text = (
+    #         f"Спасибо за регистрацию, {name}!\n\n"
+    #         f"🕒 Время: {time_slot}\n\n"
+    #         f"Ждём вас на мастер-классе!"
+    #     )
+    #     await message.answer(final_text, reply_markup=types.ReplyKeyboardRemove())
+    #     await state.clear()
+    # 
+    # 
+    # @router.message(LeadForm.time)
+    # async def time_invalid(message: types.Message, state: FSMContext):
+    #     await message.answer(
+    #         "Пожалуйста, выберите один из предложенных вариантов времени кнопкой ниже."
+    #     )
 
