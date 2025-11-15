@@ -1,32 +1,46 @@
-import asyncio
 import logging
+import os
+from fastapi import FastAPI, Request
 from aiogram import Bot, Dispatcher
-from aiogram.types import BotCommand
-from config import BOT_TOKEN
-from handlers import registration
-from handlers import agreement
-async def set_commands(bot: Bot) -> None:
-    commands = [
-        BotCommand(command="start", description="Начать запись на мастер-класс"),
-        BotCommand(command="version", description="Проверить версию бота"),
-    ]
-    await bot.set_my_commands(commands)
-async def main() -> None:
-    logging.basicConfig(level=logging.INFO)
-    if not BOT_TOKEN:
-        raise RuntimeError("BOT_TOKEN is not set in environment")
-    bot = Bot(token=BOT_TOKEN)
-    dp = Dispatcher()
-    # Подключаем роутеры: сначала согласие, затем регистрация
-    dp.include_router(agreement.router)
-    dp.include_router(registration.router)
-    await set_commands(bot)
-    logging.info("Bot started successfully")
-    try:
-        await dp.start_polling(bot)
-    except (KeyboardInterrupt, asyncio.CancelledError):
-        logging.info("Bot stopped by user (graceful shutdown)")
-    finally:
+from aiogram.types import Update
+from config import BOT_TOKEN, HOST
+from handlers import agreement, registration
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+WEBHOOK_PATH = "/webhook"
+WEBHOOK_URL = f"https://{HOST}{WEBHOOK_PATH}"
+
+bot = Bot(token=BOT_TOKEN)
+dp = Dispatcher()
+
+# Подключаем роутеры
+dp.include_router(agreement.router)
+dp.include_router(registration.router)
+
+app = FastAPI()
+
+
+@app.on_event("startup")
+async def on_startup():
+    if os.getenv("UVICORN_WORKER_NAME") == "uvicorn-worker-1":
+        logger.info("Устанавливаю webhook...")
+        await bot.set_webhook(WEBHOOK_URL, drop_pending_updates=True)
+        logger.info("Webhook установлен: %s", WEBHOOK_URL)
+
+
+@app.on_event("shutdown")
+async def on_shutdown():
+    if os.getenv("UVICORN_WORKER_NAME") == "uvicorn-worker-1":
+        logger.info("Удаляю webhook...")
+        await bot.delete_webhook()
+        logger.info("Webhook удалён")
         await bot.session.close()
-if __name__ == "__main__":
-    asyncio.run(main())
+
+
+@app.post(WEBHOOK_PATH)
+async def telegram_webhook(request: Request):
+    update = Update.model_validate(await request.json())
+    await dp.feed_update(bot, update)
+    return {"ok": True}
