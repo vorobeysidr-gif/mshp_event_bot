@@ -137,6 +137,13 @@ async def ask_is_student(message: types.Message, state: FSMContext):
 async def finish_registration(message: types.Message, state: FSMContext):
     await state.update_data(is_mshp_student=message.text)
     
+    # Сохраняем данные в таблицу ПЕРЕД квестом
+    data = await state.get_data()
+    try:
+        append_lead_row(data)
+    except Exception:
+        backup_to_csv(data)
+    
     # Убираем клавиатуру
     await message.answer("Отлично! Спасибо за информацию! 😊", reply_markup=types.ReplyKeyboardRemove())
     

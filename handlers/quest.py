@@ -159,13 +159,6 @@ async def answer_q3(cb: types.CallbackQuery, state: FSMContext):
         await cb.message.edit_text(f"✅ {QUESTION_3['text']}\n\n✔️ Правильно! Ответ: {QUESTION_3['correct']}")
         await cb.answer("Верно! 🎉")
         
-        # Сохраняем данные в Google Sheets
-        data = await state.get_data()
-        try:
-            append_lead_row(data)
-        except Exception:
-            backup_to_csv(data)
-        
         # Показываем финальное сообщение
         await cb.message.answer(QUEST_COMPLETE)
         await state.clear()
