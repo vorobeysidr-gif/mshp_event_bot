@@ -1,0 +1,8 @@
+services:
+  bot:
+    build: .
+    container_name: shp_event_bot_prod
+    restart: always
+    env_file: .env
+    ports:
+      - "8081:8081"
